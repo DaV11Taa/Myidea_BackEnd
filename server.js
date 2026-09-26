@@ -17,14 +17,22 @@ mongoose
 	.catch((err) => console.error("MongoDB connection error:", err));
 
 // Health endpoint — confirms server + DB status
-app.get("/health", (req, res) => {
-	const dbStatus =
-		mongoose.connection.readyState === 1 ? "connected" : "disconnected";
-	res.json({
-		status: "ok",
-		database: dbStatus,
-		timestamp: new Date().toISOString(),
-	});
+app.get("/health", async (req, res) => {
+	try {
+		await mongoose.connection.asPromise();
+		res.json({
+			status: "ok",
+			database: "connected",
+			timestamp: new Date().toISOString(),
+		});
+	} catch (err) {
+		res.json({
+			status: "ok",
+			database: "disconnected",
+			error: err.message,
+			timestamp: new Date().toISOString(),
+		});
+	}
 });
 
 app.listen(PORT, () => {
