@@ -10,16 +10,31 @@ const PORT = process.env.PORT || 3000;
 app.use(cors({ origin: process.env.CLIENT_URL || "*" }));
 app.use(express.json());
 
-// Connect to MongoDB Atlas (fail after 5s so Vercel does not time out first)
-mongoose
-	.connect(process.env.MONGO_URI, { serverSelectionTimeoutMS: 5000 })
+// Connect to MongoDB Atlas on demand.
+// If a previous attempt failed, the next call tries again instead of staying disconnected.
+let connecting = null;
+
+async function connectDB() {
+	if (mongoose.connection.readyState === 1) return;
+	if (!connecting) {
+		connecting = mongoose
+			.connect(process.env.MONGO_URI, { serverSelectionTimeoutMS: 8000 })
+			.finally(() => {
+				connecting = null;
+			});
+	}
+	await connecting;
+}
+
+// Try once at startup so the terminal shows the result
+connectDB()
 	.then(() => console.log("MongoDB connected"))
 	.catch((err) => console.error("MongoDB connection error:", err.message));
 
 // Health endpoint: confirms server + DB status
 app.get("/health", async (req, res) => {
 	try {
-		await mongoose.connection.asPromise();
+		await connectDB();
 		res.json({
 			status: "ok",
 			database: "connected",
