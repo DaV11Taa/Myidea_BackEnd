@@ -3,6 +3,10 @@ const mongoose = require("mongoose");
 const cors = require("cors");
 require("dotenv").config();
 
+const categoryRoutes = require("./routes/categories");
+const productRoutes = require("./routes/products");
+const userRoutes = require("./routes/users");
+
 const app = express();
 const PORT = process.env.PORT || 3000;
 
@@ -48,6 +52,40 @@ app.get("/health", async (req, res) => {
 			timestamp: new Date().toISOString(),
 		});
 	}
+});
+
+// Make sure the database is connected before any /api route runs
+app.use("/api", async (req, res, next) => {
+	await connectDB();
+	next();
+});
+
+// Routes
+app.use("/api/categories", categoryRoutes);
+app.use("/api/products", productRoutes);
+app.use("/api/users", userRoutes);
+
+// Unknown route
+app.use((req, res) => {
+	res.status(404).json({ message: "Route not found" });
+});
+
+// Error handler: must come last
+app.use((err, req, res, next) => {
+	if (err.type === "entity.parse.failed") {
+		return res.status(400).json({ message: "The request body is not valid JSON" });
+	}
+	if (err.name === "ValidationError") {
+		return res.status(400).json({ message: err.message });
+	}
+	if (err.name === "CastError") {
+		return res.status(400).json({ message: `Invalid value for ${err.path}: ${err.value}` });
+	}
+	if (err.code === 11000) {
+		return res.status(409).json({ message: "That value already exists", fields: err.keyValue });
+	}
+	console.error(err);
+	res.status(500).json({ message: "Something went wrong" });
 });
 
 // Locally: node server.js starts the server. On Vercel the file is imported instead.
