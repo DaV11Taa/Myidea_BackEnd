@@ -6,6 +6,7 @@ require("dotenv").config();
 const categoryRoutes = require("./routes/categories");
 const productRoutes = require("./routes/products");
 const userRoutes = require("./routes/users");
+const uploadRoutes = require("./routes/uploads");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -64,6 +65,8 @@ app.use("/api", async (req, res, next) => {
 app.use("/api/categories", categoryRoutes);
 app.use("/api/products", productRoutes);
 app.use("/api/users", userRoutes);
+app.use("/api/uploads", uploadRoutes);
+
 
 // Unknown route
 app.use((req, res) => {
