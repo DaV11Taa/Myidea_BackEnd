@@ -1,4 +1,5 @@
 const express = require("express");
+const bcrypt = require("bcryptjs");
 const User = require("../models/User");
 const Order = require("../models/Order");
 const Cart = require("../models/Cart");
@@ -23,19 +24,22 @@ router.get("/:id", async (req, res) => {
 	res.json(user);
 });
 
-// POST /api/users → create a user
-// Only name and email are taken from the body, so nobody can create themselves as admin.
-// The real password hashing comes in Week 3 (auth). For now the hash is a placeholder.
+// POST /api/users → an admin creates a user with a real password
+// role is not taken from the body, so every new user is a customer.
 router.post("/", async (req, res) => {
-	const { name, email } = req.body;
-	const user = await User.create({ name, email, passwordHash: "not-set-yet" });
+	const { name, email, password } = req.body;
+	if (typeof password !== "string" || password.length < 8) {
+		return res.status(400).json({ message: "Password must be at least 8 characters" });
+	}
+	const passwordHash = await bcrypt.hash(password, 10);
+	const user = await User.create({ name, email, passwordHash });
 	const safe = user.toObject();
 	delete safe.passwordHash;
 	res.status(201).json(safe);
 });
 
 // PUT /api/users/:id → update name, email or isBlocked
-// role is not editable here: changing roles needs admin login (Week 3).
+// role is not editable here, so nobody can promote an account through the admin page.
 router.put("/:id", async (req, res) => {
 	const changes = {};
 	for (const key of ["name", "email", "isBlocked"]) {

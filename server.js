@@ -3,10 +3,12 @@ const mongoose = require("mongoose");
 const cors = require("cors");
 require("dotenv").config();
 
+const { requireAuth, requireAdmin, adminForChanges } = require("./middleware/auth");
 const categoryRoutes = require("./routes/categories");
 const productRoutes = require("./routes/products");
 const userRoutes = require("./routes/users");
 const uploadRoutes = require("./routes/uploads");
+const authRoutes = require("./routes/auth");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -62,11 +64,15 @@ app.use("/api", async (req, res, next) => {
 });
 
 // Routes
-app.use("/api/categories", categoryRoutes);
-app.use("/api/products", productRoutes);
-app.use("/api/users", userRoutes);
-app.use("/api/uploads", uploadRoutes);
-
+// Login and registration are open to everyone
+app.use("/api/auth", authRoutes);
+// Anyone may read; only an admin may create, change or delete
+app.use("/api/categories", adminForChanges, categoryRoutes);
+app.use("/api/products", adminForChanges, productRoutes);
+// Users contain emails and roles, so only a logged-in admin may use these routes
+app.use("/api/users", requireAuth, requireAdmin, userRoutes);
+// Only an admin may ask for an upload signature
+app.use("/api/uploads", requireAuth, requireAdmin, uploadRoutes);
 
 // Unknown route
 app.use((req, res) => {
