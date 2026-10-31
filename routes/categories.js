@@ -1,13 +1,15 @@
 const express = require("express");
 const Category = require("../models/Category");
 const Product = require("../models/Product");
+const { searchFilter, findList } = require("../utils/list");
 
 const router = express.Router();
 
 // GET /api/categories → list all (with the parent's name filled in)
+// Optional: ?search=text  ?page=1&limit=10
 router.get("/", async (req, res) => {
-	const categories = await Category.find().populate("parent", "name slug").sort({ name: 1 });
-	res.json(categories);
+	const filter = searchFilter(req.query.search, ["name", "slug"]);
+	res.json(await findList(req, Category, filter, { sort: { name: 1 }, populate: ["parent", "name slug"] }));
 });
 
 // GET /api/categories/:id → one category

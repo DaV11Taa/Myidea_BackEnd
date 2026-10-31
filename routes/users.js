@@ -3,18 +3,19 @@ const bcrypt = require("bcryptjs");
 const User = require("../models/User");
 const Order = require("../models/Order");
 const Cart = require("../models/Cart");
+const { searchFilter, findList } = require("../utils/list");
 
 const router = express.Router();
 
 // Never send the password hash back to the client
 const SAFE = "-passwordHash";
 
-// GET /api/users → list all users (optional filter: ?role=admin)
+// GET /api/users → list users
+// Optional: ?role=admin  ?search=text (name or email)  ?page=1&limit=10
 router.get("/", async (req, res) => {
-	const filter = {};
+	const filter = searchFilter(req.query.search, ["name", "email"]);
 	if (req.query.role) filter.role = req.query.role;
-	const users = await User.find(filter).select(SAFE).sort({ createdAt: -1 });
-	res.json(users);
+	res.json(await findList(req, User, filter, { select: SAFE }));
 });
 
 // GET /api/users/:id → one user
@@ -49,6 +50,26 @@ router.put("/:id", async (req, res) => {
 		returnDocument: "after",
 		runValidators: true,
 	}).select(SAFE);
+	if (!user) return res.status(404).json({ message: "User not found" });
+	res.json(user);
+});
+
+// PATCH /api/users/:id/role → make someone an admin or a customer
+// The new role is used from that user's next login (the token still holds the old role).
+router.patch("/:id/role", async (req, res) => {
+	const { role } = req.body;
+	if (!["customer", "admin"].includes(role)) {
+		return res.status(400).json({ message: 'role must be "customer" or "admin"' });
+	}
+	// An admin must not lock themselves out by accident
+	if (req.params.id === req.user.id) {
+		return res.status(400).json({ message: "You cannot change your own role" });
+	}
+	const user = await User.findByIdAndUpdate(
+		req.params.id,
+		{ role },
+		{ returnDocument: "after", runValidators: true }
+	).select(SAFE);
 	if (!user) return res.status(404).json({ message: "User not found" });
 	res.json(user);
 });

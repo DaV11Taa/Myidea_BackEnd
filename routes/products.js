@@ -1,17 +1,52 @@
 const express = require("express");
 const Product = require("../models/Product");
+const { searchFilter, findList } = require("../utils/list");
 
 const router = express.Router();
 
-// GET /api/products → list all. Optional: /api/products?category=<categoryId>
-router.get("/", async (req, res) => {
-	const filter = {};
-	if (req.query.category) filter.category = req.query.category;
+// The orders the admin can pick. Anything else falls back to "newest".
+const SORTS = {
+	newest: { createdAt: -1 },
+	oldest: { createdAt: 1 },
+	"price-asc": { price: 1 },
+	"price-desc": { price: -1 },
+	title: { title: 1 },
+};
 
-	const products = await Product.find(filter)
-		.populate("category", "name slug")
-		.sort({ createdAt: -1 });
-	res.json(products);
+// "12" → 12, "" or "abc" → undefined
+function toNumber(value) {
+	if (value === undefined || value === "") return undefined;
+	const n = Number(value);
+	return Number.isNaN(n) ? undefined : n;
+}
+
+// GET /api/products → list all
+// Optional: ?search=text ?category=<id> ?inStock=true|false ?active=true|false
+//           ?minPrice=10 ?maxPrice=50 ?sort=newest|oldest|price-asc|price-desc|title
+//           ?page=1&limit=10
+router.get("/", async (req, res) => {
+	const { search, category, inStock, active, minPrice, maxPrice, sort } = req.query;
+	const filter = searchFilter(search, ["title", "description"]);
+
+	if (category) filter.category = category;
+	if (inStock === "true") filter.stock = { $gt: 0 };
+	if (inStock === "false") filter.stock = 0;
+	if (active === "true" || active === "false") filter.isActive = active === "true";
+
+	const min = toNumber(minPrice);
+	const max = toNumber(maxPrice);
+	if (min !== undefined || max !== undefined) {
+		filter.price = {};
+		if (min !== undefined) filter.price.$gte = min;
+		if (max !== undefined) filter.price.$lte = max;
+	}
+
+	res.json(
+		await findList(req, Product, filter, {
+			sort: SORTS[sort] || SORTS.newest,
+			populate: ["category", "name slug"],
+		})
+	);
 });
 
 // GET /api/products/:id → one product

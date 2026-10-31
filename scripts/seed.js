@@ -36,6 +36,15 @@ async function seed() {
 		{ title: "Falcon Gaming Mouse", description: "8000 DPI, 6 buttons.", price: 39, stock: 0, category: mice._id },
 	]);
 
+	// 25 test products, so the admin list has more than one page
+	const many = Array.from({ length: 25 }, (_, i) => ({
+		title: `Test product ${i + 1}`,
+		price: 10 + i,
+		stock: i % 5,
+		category: mechanical._id,
+	}));
+	await Product.insertMany(many);
+
 	// Demo users. Only accounts ending in @example.com are removed, real ones stay.
 	const passwordHash = await bcrypt.hash(process.env.SEED_PASSWORD, 10);
 	await User.deleteMany({ email: /@example\.com$/ });

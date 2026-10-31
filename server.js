@@ -9,6 +9,7 @@ const productRoutes = require("./routes/products");
 const userRoutes = require("./routes/users");
 const uploadRoutes = require("./routes/uploads");
 const authRoutes = require("./routes/auth");
+const adminRoutes = require("./routes/admin");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -73,6 +74,7 @@ app.use("/api/products", adminForChanges, productRoutes);
 app.use("/api/users", requireAuth, requireAdmin, userRoutes);
 // Only an admin may ask for an upload signature
 app.use("/api/uploads", requireAuth, requireAdmin, uploadRoutes);
+app.use("/api/admin", requireAuth, requireAdmin, adminRoutes);
 
 // Unknown route
 app.use((req, res) => {
